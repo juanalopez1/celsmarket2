@@ -6,10 +6,13 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "not_found_handling": "none"
+    "not_found_handling": "none",
+  },
+  "observability": {
+    "enabled": false,
   },
   "kv_namespaces": [
-    { "binding": "SETTINGS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+    { "binding": "SETTINGS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" },
   ],
   "vars": {
     "TAB_SEMI_1": "Stock Seminuevos 1",
@@ -21,6 +24,6 @@
     "CURRENCY_SEMI": "UYU",
     "CURRENCY_SELLADOS": "USD",
     "RATE_FALLBACK": "40",
-    "WHATSAPP": "59891070450"
-  }
+    "WHATSAPP": "59891070450",
+  },
 }
