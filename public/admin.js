@@ -55,10 +55,10 @@
     const slots = await api('/api/admin/photo-slots');
     const sin = slots.filter((s) => !s.fotos.length).length;
     $('#view').innerHTML = `<h2 style="margin:20px 0 6px">Fotos de tu stock</h2><p class="sub">La web toma los modelos y precios de tu planilla. Subí una foto por modelo y color: se usa en todos los equipos iguales. ${sin ? `Faltan fotos en ${sin} de ${slots.length}.` : 'Todos tienen foto.'}</p><p class="msg" id="fMsg"></p>
-      <div class="slots">${slots.map((s) => `<div class="box slot"><div class="thumb">${s.fotos[0] ? `<img src="${esc(s.fotos[0])}" alt="">` : 'Sin foto'}</div>
+      <div class="slots">${slots.map((s) => `<div class="box slot"><div class="thumb">${s.fotos[0] ? `<img src="${esc(s.fotos[0].url)}" alt="">` : 'Sin foto'}</div>
         <div style="flex:1;min-width:160px"><b>${esc(s.modelo)}</b><p class="sub" style="margin:4px 0 10px">${esc([s.gb, s.color].filter(Boolean).join(' · '))} · ${s.equipos} ${s.equipos > 1 ? 'equipos' : 'equipo'}</p>
         <label class="up">${s.fotos.length ? 'Agregar fotos' : 'Subir foto'}<input type="file" accept="image/*" multiple data-up="${esc(s.key)}"></label>
-        <div class="thumbs">${s.fotos.map((f) => `<div><img src="${esc(f)}" alt=""><button title="Borrar" aria-label="Borrar foto" data-del="${esc(f)}">×</button></div>`).join('')}</div></div></div>`).join('')}</div>`;
+        <div class="thumbs">${s.fotos.map((f) => `<div><img src="${esc(f.url)}" alt=""><button title="Borrar" aria-label="Borrar foto" data-del="${esc(f.id)}">×</button></div>`).join('')}</div></div></div>`).join('')}</div>`;
     document.querySelectorAll('[data-up]').forEach((i) => (i.onchange = async () => {
       if (!i.files.length) return; $('#fMsg').textContent = 'Subiendo…';
       const fd = new FormData(); [...i.files].slice(0, 6).forEach((f) => fd.append('photos', f));
@@ -66,7 +66,7 @@
     }));
     document.querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => {
       if (!confirm('¿Borrar esta foto?')) return;
-      const [, , key, file] = b.dataset.del.split('/'); await api(`/api/admin/photos/${key}/${file}`, { method: 'DELETE' }); fotos();
+      await api(`/api/admin/photos?public_id=${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE' }); fotos();
     }));
   }
 
