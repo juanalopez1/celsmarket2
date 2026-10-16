@@ -78,11 +78,11 @@
     $('#cModel').onchange = upd; $('#cBat').onchange = upd; upd();
   }
 
-  // Scroll suave a las secciones (menú, "Ver stock", etc.)
+  // Scroll suave solo hacia Stock (menú y botón "Ver stock")
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href^="#"]');
     const id = a && a.getAttribute('href');
-    if (!id || id.length < 2) return;
+    if (id !== '#stock') return; // el scroll suave es solo para Stock; el resto salta normal
     const t = document.querySelector(id);
     if (!t) return;
     e.preventDefault();

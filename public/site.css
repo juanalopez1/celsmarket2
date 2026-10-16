@@ -36,7 +36,7 @@ h2{font-size:clamp(26px,3.4vw,38px);margin-bottom:12px}
 .ben{padding:24px;border-radius:20px;background:#0f1117;border:1px solid #1f2430}
 .ben h3{font-size:18px;color:#f59a0b;margin-bottom:8px}
 .ben p{color:#b5bac5;line-height:1.5}
-.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
 .box{padding:32px;border-radius:24px;background:#0f1117;border:1px solid #1f2430}
 .box p{color:#c3c7d0;line-height:1.7}
 .map{height:200px;border-radius:14px;margin-top:20px;border:1px dashed #34405a;display:flex;align-items:center;justify-content:center;color:#8a93a6;font-size:14px}
@@ -52,8 +52,6 @@ footer{border-top:1px solid #1a1e28;padding:28px 0;color:#7d8494;font-size:14px}
 .ph .noph{color:#4a5568;font-size:14px}.qty{color:#f59a0b;font-size:13px;font-weight:600}
 .wa-fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:20;min-height:56px;padding:0 22px;border-radius:999px;display:inline-flex;align-items:center;background:#25a244;color:#fff;font-weight:600;box-shadow:0 8px 24px #0008}
 .empty{color:#9aa0ad;padding:24px 0}
-html{scroll-behavior:smooth}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 section{scroll-margin-top:8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
@@ -82,4 +80,5 @@ section{scroll-margin-top:8px}
   .btn{min-height:44px;padding:0 18px;font-size:14px}
   section{padding:44px 0}
   .tools{gap:10px}
+  .two{gap:12px}.box{padding:16px}.box h2{font-size:20px}.box p{font-size:14px;line-height:1.6}.links{gap:10px}.links a{padding:0 12px;font-size:13px;min-height:44px;overflow-wrap:anywhere}.cta .btn{width:100%}.mapf iframe{height:220px}.mapf{height:220px}
 }
