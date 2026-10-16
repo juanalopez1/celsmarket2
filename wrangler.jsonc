@@ -12,7 +12,7 @@
     "enabled": false,
   },
   "kv_namespaces": [
-    { "binding": "SETTINGS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" },
+    { "binding": "SETTINGS", "id": "92f9ed40c95c4ed2a5d05373316168e8" },
   ],
   "vars": {
     "TAB_SEMI_1": "Stock Seminuevos 1",
