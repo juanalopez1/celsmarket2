@@ -1,6 +1,13 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let toastT;
+  function toast(text, kind = 'info', sticky = false) {
+    let el = document.getElementById('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+    el.className = 'toast ' + kind; el.textContent = text; clearTimeout(toastT);
+    if (!sticky) toastT = setTimeout(() => el.remove(), 4500);
+  }
   const nf = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 0 });
   const money = (n, cur = 'UYU') => (cur === 'USD' ? 'US$ ' : '$ ') + nf.format(n);
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -60,13 +67,28 @@
         <label class="up">${s.fotos.length ? 'Agregar fotos' : 'Subir foto'}<input type="file" accept="image/*" multiple data-up="${esc(s.key)}"></label>
         <div class="thumbs">${s.fotos.map((f) => `<div><img src="${esc(f.url)}" alt=""><button title="Borrar" aria-label="Borrar foto" data-del="${esc(f.id)}">×</button></div>`).join('')}</div></div></div>`).join('')}</div>`;
     document.querySelectorAll('[data-up]').forEach((i) => (i.onchange = async () => {
-      if (!i.files.length) return; $('#fMsg').textContent = 'Subiendo…';
-      const fd = new FormData(); [...i.files].slice(0, 6).forEach((f) => fd.append('photos', f));
-      try { await api(`/api/admin/photos/${i.dataset.up}`, { method: 'POST', body: fd }); fotos(); } catch (e) { $('#fMsg').textContent = e.message; }
+      const files = [...i.files].filter((f) => f.type.startsWith('image/'));
+      i.value = '';
+      if (!files.length) return toast('Elegí una imagen (JPG, PNG o similar).', 'err');
+      if (files.some((f) => f.size > 12 * 1024 * 1024)) return toast('Cada foto puede pesar hasta 12 MB.', 'err');
+      const n = Math.min(files.length, 6), card = i.closest('.slot');
+      card.classList.add('busy');
+      toast(`Subiendo ${n} ${n > 1 ? 'fotos' : 'foto'}…`, 'info', true);
+      const fd = new FormData(); files.slice(0, 6).forEach((f) => fd.append('photos', f));
+      try {
+        const r = await api(`/api/admin/photos/${i.dataset.up}`, { method: 'POST', body: fd });
+        await fotos();
+        toast(`✓ ${r.saved.length > 1 ? r.saved.length + ' fotos subidas' : 'Foto subida'}. Ya se ve en el catálogo.`, 'ok');
+      } catch (e) { card.classList.remove('busy'); if (e.message !== '401') toast(e.message, 'err'); }
     }));
     document.querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => {
-      if (!confirm('¿Borrar esta foto?')) return;
-      await api(`/api/admin/photos?public_id=${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE' }); fotos();
+      if (!confirm('¿Borrar esta foto? Va a dejar de verse en el catálogo.')) return;
+      b.disabled = true; toast('Borrando foto…', 'info', true);
+      try {
+        await api(`/api/admin/photos?public_id=${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE' });
+        await fotos();
+        toast('✓ Foto borrada. Ya no se ve en el catálogo.', 'ok');
+      } catch (e) { b.disabled = false; if (e.message !== '401') toast(e.message, 'err'); }
     }));
   }
 

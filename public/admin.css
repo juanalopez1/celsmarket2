@@ -36,3 +36,6 @@ h2{font-size:26px;margin:48px 0 6px}
 .tabs{display:flex;gap:8px;margin:20px 0;flex-wrap:wrap}.tab{min-height:44px;padding:0 20px;border-radius:999px;border:1px solid #2b2f3a;background:#0f1117;color:#d9dce3;font:500 15px 'Outfit',sans-serif;cursor:pointer}.tab.on{background:#0a6fd8;border-color:#0a6fd8;color:#fff}
 .slot{flex-wrap:wrap}.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.thumbs div{position:relative}.thumbs img{width:56px;height:56px;object-fit:cover;border-radius:10px}.thumbs button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#c0392b;color:#fff;cursor:pointer;line-height:1}
 .thumb img{width:100%;height:100%;object-fit:cover;border-radius:12px}.msg{color:#f59a0b;font-size:14px;min-height:20px}.hide{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:50;max-width:90vw;padding:14px 22px;border-radius:14px;background:#0f1117;border:1px solid #2a77d6;color:#f2f3f5;font-weight:500;box-shadow:0 10px 30px #000a}
+.toast.ok{border-color:#25a244}.toast.err{border-color:#c0392b;color:#ffb4a8}
+.slot.busy{opacity:.55;pointer-events:none}

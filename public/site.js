@@ -109,13 +109,22 @@
     }
   });
 
-  async function init() {
-    calc();
+  let last = '';
+  async function load(first) {
     try {
-      const [s, r] = await Promise.all([fetch('/api/stock').then((x) => x.json()), fetch('/api/rate').then((x) => x.json())]);
+      const [s, r] = await Promise.all([fetch('/api/stock', { cache: 'no-store' }).then((x) => x.json()), fetch('/api/rate').then((x) => x.json())]);
+      const sig = JSON.stringify([s.items, r.rate]);
+      if (sig === last) return; // sin cambios: no redibujamos
+      last = sig;
       state.items = s.items || []; state.wa = s.whatsapp || state.wa; state.rate = r.rate || state.rate;
-    } catch { $('#grid').innerHTML = '<p class="empty">No pudimos cargar el stock. Escribinos por WhatsApp y te pasamos la lista.</p>'; }
-    links(); render();
+      links(); render();
+    } catch { if (first) $('#grid').innerHTML = '<p class="empty">No pudimos cargar el stock. Escribinos por WhatsApp y te pasamos la lista.</p>'; }
+  }
+  async function init() {
+    calc(); links();
+    await load(true);
+    setInterval(load, 30000); // el catálogo se actualiza solo (fotos, precios, stock)
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   }
   init();
 })();

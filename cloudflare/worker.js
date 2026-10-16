@@ -49,7 +49,21 @@ async function allCloudinaryAssets(env){
  }while(cursor&&all.length<5000);
  cloudinaryCache={at:Date.now(),resources:all};return all;
 }
-async function cloudinaryAssets(env,key){return (await allCloudinaryAssets(env)).filter(x=>x.public_id.startsWith(key+"/")).sort((a,b)=>a.public_id.localeCompare(b.public_id))}
+let photoMem=null;
+async function photoIndex(env){
+ if(photoMem&&Date.now()-photoMem.at<5000)return photoMem.idx;
+ let idx=await env.SETTINGS.get("photoindex","json");
+ if(!idx){
+  idx={};for(const x of await allCloudinaryAssets(env)){const k=x.public_id.split("/")[0];(idx[k]||=[]).push({id:x.public_id,url:x.secure_url})}
+  for(const k in idx)idx[k].sort((a,b)=>a.id.localeCompare(b.id));
+  await env.SETTINGS.put("photoindex",JSON.stringify(idx));
+ }
+ photoMem={at:Date.now(),idx};return idx;
+}
+async function savePhotoIndex(env,idx){await env.SETTINGS.put("photoindex",JSON.stringify(idx));photoMem={at:Date.now(),idx}}
+async function addPhotos(env,key,items){if(!items.length)return;const idx=await photoIndex(env);idx[key]=[...(idx[key]||[]),...items].sort((a,b)=>a.id.localeCompare(b.id));await savePhotoIndex(env,idx)}
+async function removePhoto(env,publicId){const idx=await photoIndex(env),k=publicId.split("/")[0];idx[k]=(idx[k]||[]).filter(x=>x.id!==publicId);if(!idx[k].length)delete idx[k];await savePhotoIndex(env,idx)}
+async function cloudinaryAssets(env,key){return ((await photoIndex(env))[key]||[]).map(x=>({public_id:x.id,secure_url:x.url}))}
 async function photos(env,key){return (await cloudinaryAssets(env,key)).map(x=>x.secure_url)}
 async function loadAll(env){const [a,b,c]=await Promise.all([readTab(env,env.TAB_SEMI_1||"Stock Seminuevos 1"),readTab(env,env.TAB_SEMI_2||"Stock Seminuevos 2"),readTab(env,env.TAB_SELLADOS||"Stock Sellados").catch(()=>[])]);const semi=[...a,...b].filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:norm(r[2]),color:cap(r[3]),costo:num(r[4]),precio:num(r[5]),bateria:bat(r[6]),estado:"Seminuevo",moneda:env.CURRENCY_SEMI||"UYU"}));const sealed=c.filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:"",color:cap(r[2]),costo:num(r[3]),precio:num(r[4]),bateria:"",estado:"Sellado",moneda:env.CURRENCY_SELLADOS||"USD"}));return [...sealed,...semi].map(x=>({...x,photoKey:slug(`${x.modelo} ${x.gb} ${x.color}`)}))}
 async function publicStock(env){const groups=new Map();for(const x of (await loadAll(env)).filter(x=>x.precio>0)){const k=[x.estado,x.modelo,x.gb,x.color,x.bateria,x.detalle,x.precio,x.moneda].join("|"),g=groups.get(k);if(g)g.cantidad++;else groups.set(k,{estado:x.estado,modelo:x.modelo,gb:x.gb,color:x.color,bateria:x.bateria,detalle:/^(nada|ninguno|-)?$/i.test(x.detalle)?"":x.detalle,precio:x.precio,moneda:x.moneda,cantidad:1,fotos:await photos(env,x.photoKey)})}return [...groups.values()]}
@@ -68,7 +82,7 @@ async function route(req,env){const u=new URL(req.url),p=u.pathname,m=req.method
  if(p==="/api/admin/login"&&m==="POST"){const b=await req.json().catch(()=>({}));if(!env.ADMIN_PASSWORD||b.password!==env.ADMIN_PASSWORD)return json({error:"Contraseña incorrecta"},401);return json({ok:true},200,{"set-cookie":cookie(await token(env),SESSION,new URL(req.url).protocol==="https:")})}
  if(p==="/api/admin/logout"&&m==="POST")return json({ok:true},200,{"set-cookie":cookie("",0,new URL(req.url).protocol==="https:")});
  if(p==="/api/admin/me")return json({admin:await admin(req,env)});
- if(p==="/api/stock")return json({items:await publicStock(env),whatsapp:env.WHATSAPP||""},200,{"cache-control":"public, max-age=30"});
+ if(p==="/api/stock")return json({items:await publicStock(env),whatsapp:env.WHATSAPP||""},200,{"cache-control":"no-cache"});
  if(p==="/api/rate")return json(await getRate(env),200,{"cache-control":"public, max-age=300"});
  if(p==="/api/admin/stats"&&m==="GET"){const [sales,stock]=await Promise.all([salesStats(env,u.searchParams.get("month")),stockValue(env)]);return json({sales,stock})}
  if(p==="/api/admin/debts"&&m==="GET"){const [d,c]=await Promise.all([debts(env),cash(env)]);return json({debts:d,cash:c})}
@@ -78,21 +92,21 @@ async function route(req,env){const u=new URL(req.url),p=u.pathname,m=req.method
   const key=pm[1],form=await req.formData(),files=form.getAll("photos").filter(x=>x&&typeof x.arrayBuffer==="function");
   if(!files.length)return json({error:"No llegó ninguna imagen"},400);
   const existing=await cloudinaryAssets(env,key);if(existing.length+files.length>MAX_PHOTOS)return json({error:`Máximo ${MAX_PHOTOS} fotos por modelo`},400);
-  const saved=[];
-  for(const f of files.slice(0,6)){
+  const saved=[],added=[];
+  try{for(const f of files.slice(0,6)){
    if(!f.type.startsWith("image/"))continue;if(f.size>12*1024*1024)return json({error:"Máximo 12 MB por imagen"},400);
    const publicId=`${key}/${Date.now()}-${crypto.randomUUID().slice(0,8)}`,timestamp=Math.floor(Date.now()/1000),params={public_id:publicId,timestamp};
    const body=new FormData();body.set("file",f,f.name||"photo");body.set("public_id",publicId);body.set("timestamp",String(timestamp));body.set("api_key",env.CLOUDINARY_API_KEY);body.set("signature",await cloudinarySignature(params,env.CLOUDINARY_API_SECRET));
-   const r=await cloudinaryRequest(env,"/image/upload",{method:"POST",body}),j=await r.json().catch(()=>({}));if(!r.ok)throw Error("Cloudinary: "+(j.error?.message||r.status));saved.push(j.secure_url);
-  }
-  return json({saved});
+   const r=await cloudinaryRequest(env,"/image/upload",{method:"POST",body}),j=await r.json().catch(()=>({}));if(!r.ok)throw Error("Cloudinary: "+(j.error?.message||r.status));saved.push(j.secure_url);added.push({id:j.public_id,url:j.secure_url});
+  }}finally{await addPhotos(env,key,added)}
+  return json({saved,photos:(await photoIndex(env))[key]||[]});
  }
  if(p==="/api/admin/photos"&&m==="DELETE"){
   const publicId=u.searchParams.get("public_id")||"";if(!/^[a-z0-9-]{1,120}\/[a-zA-Z0-9_-]{1,80}$/.test(publicId))return json({error:"Foto inválida"},400);
-  const timestamp=Math.floor(Date.now()/1000),params={public_id:publicId,timestamp},body=new URLSearchParams({public_id:publicId,timestamp:String(timestamp),api_key:env.CLOUDINARY_API_KEY,signature:await cloudinarySignature(params,env.CLOUDINARY_API_SECRET)});
-  const r=await cloudinaryRequest(env,"/image/destroy",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body}),j=await r.json().catch(()=>({}));if(!r.ok||j.result!=="ok"&&j.result!=="not found")throw Error("Cloudinary: "+(j.error?.message||j.result||r.status));return json({ok:true});
+  const timestamp=Math.floor(Date.now()/1000),params={public_id:publicId,timestamp,invalidate:"true"},body=new URLSearchParams({public_id:publicId,invalidate:"true",timestamp:String(timestamp),api_key:env.CLOUDINARY_API_KEY,signature:await cloudinarySignature(params,env.CLOUDINARY_API_SECRET)});
+  const r=await cloudinaryRequest(env,"/image/destroy",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body}),j=await r.json().catch(()=>({}));if(!r.ok||j.result!=="ok"&&j.result!=="not found")throw Error("Cloudinary: "+(j.error?.message||j.result||r.status));await removePhoto(env,publicId);return json({ok:true,photos:(await photoIndex(env))[publicId.split("/")[0]]||[]});
  }
  if(p==="/api/admin/settings"&&m==="GET")return json(await settings(env));
  if(p==="/api/admin/settings"&&m==="PUT"){const b=await req.json().catch(()=>({})),v=Number(b.rateOverride);return json(await saveSettings(env,{rateOverride:v>0&&v<1000?v:null}))}
  return env.ASSETS.fetch(req)}
-export default {async fetch(req,env){try{return await route(req,env)}catch(e){console.error(e);return json({error:"Error interno del servidor",detail:env.ENVIRONMENT==="development"?String(e.message):undefined},500)}}};
+export default {async fetch(req,env){try{const res=await route(req,env);if(new URL(req.url).pathname.startsWith("/api/admin/")){const r2=new Response(res.body,res);r2.headers.set("cache-control","no-store");return r2}return res}catch(e){console.error(e);return json({error:"Error interno del servidor",detail:env.ENVIRONMENT==="development"?String(e.message):undefined},500)}}};
