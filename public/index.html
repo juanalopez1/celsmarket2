@@ -1,73 +1,269 @@
 <!doctype html>
 <html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CelsMarket Uy · iPhone en Salto, envíos a todo Uruguay</title>
-<meta name="description" content="Venta y compra de iPhone sellados y seminuevos. Tomamos tu iPhone como forma de pago. Envíos a todo Uruguay.">
-<link rel="icon" href="/logo.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Outfit:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/site.css">
-</head>
-<body>
-<div class="wrap">
-  <header class="nav"><img src="/logo.png" alt="CelsMarket Uy" style="height:64px;width:auto">
-    <nav><a href="#stock">Stock</a><a href="#pagos">Pagos</a><a href="#canje">Tu canje</a><a href="#faq">Preguntas</a><a href="#local">Local</a></nav></header>
-  <div class="hero"><div><h1>Tu próximo iPhone, <em>con quien ya vendió +650</em></h1>
-    <p>Sellados y seminuevos en Salto. Envíos a todo Uruguay y tomamos tu iPhone como forma de pago.</p>
-    <div class="cta"><a class="btn" href="#stock">Ver stock</a></div></div>
-    <img class="logo" src="/logo.png" alt="Logo CelsMarket Uy"></div>
-</div>
-<div class="wrap">
-<section id="stock"><h2>Stock disponible</h2><p class="sub">Tocá “Consultar” y se abre WhatsApp con el equipo que elegiste.</p>
-  <div class="fwrap">
-    <div class="ftabs" id="tabs" role="tablist" aria-label="Categoría"></div>
-    <div class="cur" role="group" aria-label="Moneda"><button class="chip on" data-cur="USD">USD</button><button class="chip" data-cur="UYU">$ UYU</button></div>
-    <label class="search"><span class="sr">Buscar equipo</span>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Buscar modelo, color, GB…" autocomplete="off" enterkeyhint="search"></label>
-    <select class="sel sortsel serie" id="mdl" aria-label="Modelo"><option value="all">Modelo: todos</option></select>
-    <select class="sel sortsel" id="sort" aria-label="Ordenar por">
-      <option value="rel">Ordenar: destacados</option><option value="asc">Menor precio</option><option value="desc">Mayor precio</option></select>
-  </div>
-  <div class="cline"><p class="count" id="count" aria-live="polite"></p><button class="clear" id="clear" hidden>Limpiar filtros ✕</button></div>
-  <div class="grid" id="grid"><p class="empty">Cargando stock…</p></div>
-  <div class="more" id="more" hidden><button class="seeall" id="seeall" aria-expanded="false"><span id="seeallTxt">Ver todo</span>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
-  <p class="sub" id="rateNote" style="margin:20px 0 0;font-size:14px"></p></section>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>CelsMarket Uy · iPhone en Salto, envíos a todo Uruguay</title>
+    <meta
+      name="description"
+      content="Venta y compra de iPhone sellados y seminuevos. Tomamos tu iPhone como forma de pago. Envíos a todo Uruguay."
+    />
+    <link rel="icon" href="/logo.png" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Outfit:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="nav">
+        <img
+          src="/logo.png"
+          alt="CelsMarket Uy"
+          style="height: 64px; width: auto"
+        />
+        <nav>
+          <a href="#stock">Stock</a><a href="#pagos">Pagos</a
+          ><a href="#canje">Tu canje</a><a href="#faq">Preguntas</a
+          ><a href="#local">Local</a>
+        </nav>
+      </header>
+      <div class="hero">
+        <div>
+          <h1>Tu próximo iPhone, <em>con quien ya vendió +650</em></h1>
+          <p>
+            Sellados y seminuevos en Salto. Envíos a todo Uruguay y tomamos tu
+            iPhone como forma de pago.
+          </p>
+          <div class="cta"><a class="btn" href="#stock">Ver stock</a></div>
+        </div>
+        <img class="logo" src="/logo.png" alt="Logo CelsMarket Uy" />
+      </div>
+    </div>
+    <div class="wrap">
+      <section id="stock">
+        <h2>Stock disponible</h2>
+        <div class="fwrap">
+          <div
+            class="ftabs"
+            id="tabs"
+            role="tablist"
+            aria-label="Categoría"
+          ></div>
+          <div class="cur" role="group" aria-label="Moneda">
+            <button class="chip on" data-cur="USD">USD</button
+            ><button class="chip" data-cur="UYU">$ UYU</button>
+          </div>
+          <label class="search"
+            ><span class="sr">Buscar equipo</span>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              id="q"
+              type="search"
+              placeholder="Buscar modelo, color, GB…"
+              autocomplete="off"
+              enterkeyhint="search"
+          /></label>
+          <select class="sel sortsel serie" id="mdl" aria-label="Modelo">
+            <option value="all">Modelo: todos</option>
+          </select>
+          <select class="sel sortsel" id="sort" aria-label="Ordenar por">
+            <option value="rel">Ordenar: destacados</option>
+            <option value="asc">Menor precio</option>
+            <option value="desc">Mayor precio</option>
+          </select>
+        </div>
+        <div class="cline">
+          <p class="count" id="count" aria-live="polite"></p>
+          <button class="clear" id="clear" hidden>Limpiar filtros</button>
+        </div>
+        <div class="grid" id="grid"><p class="empty">Cargando stock…</p></div>
+        <div class="more" id="more" hidden>
+          <button class="seeall" id="seeall" aria-expanded="false">
+            <span id="seeallTxt">Ver todo</span>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+        <p
+          class="sub"
+          id="rateNote"
+          style="margin: 20px 0 0; font-size: 14px"
+        ></p>
+      </section>
 
-<section id="pagos"><h2>Medios de pago</h2><p class="sub">Fácil, seguro y confiable.</p><div class="pay">
-  <div class="ben"><h3>Efectivo</h3><p>Pesos y dólares.</p></div>
-  <div class="ben"><h3>Transferencia</h3><p>Bancaria.</p></div>
-  <div class="ben"><h3>POS</h3><p>Todas las tarjetas.</p><span class="pill o">+15%</span></div>
-  <div class="ben"><h3>Mercado Pago</h3><p>Link de pago y código QR.</p><span class="pill">+10%</span></div></div></section>
+      <section id="pagos">
+        <h2>Medios de pago</h2>
+        <p class="sub">Fácil, seguro y confiable.</p>
+        <div class="pay">
+          <div class="ben">
+            <h3>Efectivo</h3>
+            <p>Pesos y dólares.</p>
+          </div>
+          <div class="ben">
+            <h3>Transferencia</h3>
+            <p>Bancaria.</p>
+          </div>
+          <div class="ben">
+            <h3>POS</h3>
+            <p>Todas las tarjetas.</p>
+            <span class="pill o">+15%</span>
+          </div>
+          <div class="ben">
+            <h3>Mercado Pago</h3>
+            <p>Link de pago y código QR.</p>
+            <span class="pill">+10%</span>
+          </div>
+        </div>
+      </section>
 
-<section id="canje"><div class="box"><h2>Tomamos tu iPhone</h2><p class="sub">Elegí tu equipo actual y el estado de la batería. Te cotizamos el canje por WhatsApp.</p>
-  <div class="calc"><label>Tu iPhone actual<select class="sel" id="cModel"></select></label>
-  <label>Batería<select class="sel" id="cBat"></select></label>
-  <a class="btn" id="cGo" href="#">Cotizar mi canje</a></div></div></section>
+      <section id="canje">
+        <div class="box">
+          <h2>Tomamos tu iPhone</h2>
+          <p class="sub">
+            Elegí tu equipo actual y el estado de la batería. Te cotizamos el
+            canje por WhatsApp.
+          </p>
+          <div class="calc">
+            <label
+              >Tu iPhone actual<select class="sel" id="cModel"></select
+            ></label>
+            <label>Batería<select class="sel" id="cBat"></select></label>
+            <a class="btn" id="cGo" href="#">Cotizar mi canje</a>
+          </div>
+        </div>
+      </section>
 
-<section id="faq" class="faq"><h2>Preguntas frecuentes</h2><p class="sub">Lo que más nos consultan.</p>
-  <details><summary>¿Hacen envíos?</summary><p>Sí, enviamos a todo Salto y a todo Uruguay.</p></details>
-  <details><summary>¿Toman mi iPhone como forma de pago?</summary><p>Sí. Usá la calculadora de arriba o escribinos por WhatsApp y te cotizamos tu equipo.</p></details>
-  <details><summary>¿Qué medios de pago aceptan?</summary><p>Efectivo en pesos y dólares, transferencia bancaria, POS con todas las tarjetas (+15%) y Mercado Pago con link o QR (+10%).</p></details>
-  <details><summary>¿Tienen garantía?</summary><p>Los equipos nuevos y sellados incluyen garantía. Por los seminuevos, consultanos por WhatsApp.</p></details>
-  <details><summary>¿Dónde queda el local?</summary><p>Estamos en Salto, podés ver el mapa en la sección “Visitanos en Salto”. Atendemos con agenda previa: coordiná tu visita por WhatsApp.</p></details>
-  <details><summary>¿Los precios están en dólares o en pesos?</summary><p>Los equipos nuevos se publican en dólares y los seminuevos en pesos. Con el botón de moneda podés ver todo en la que prefieras, según la cotización del día.</p></details></section>
+      <section id="faq" class="faq">
+        <h2>Preguntas frecuentes</h2>
+        <p class="sub">Lo que más nos consultan.</p>
+        <details>
+          <summary>¿Hacen envíos?</summary>
+          <p>Sí, enviamos a todo Salto y a todo Uruguay.</p>
+        </details>
+        <details>
+          <summary>¿Toman mi iPhone como forma de pago?</summary>
+          <p>
+            Sí. Usá la calculadora de arriba o escribinos por WhatsApp y te
+            cotizamos tu equipo.
+          </p>
+        </details>
+        <details>
+          <summary>¿Qué medios de pago aceptan?</summary>
+          <p>
+            Efectivo en pesos y dólares, transferencia bancaria, POS con todas
+            las tarjetas (+15%) y Mercado Pago con link o QR (+10%).
+          </p>
+        </details>
+        <details>
+          <summary>¿Tienen garantía?</summary>
+          <p>
+            Los equipos nuevos y sellados incluyen garantía. Por los seminuevos,
+            consultanos por WhatsApp.
+          </p>
+        </details>
+        <details>
+          <summary>¿Dónde queda el local?</summary>
+          <p>
+            Estamos en Salto, podés ver el mapa en la sección “Visitanos en
+            Salto”. Atendemos con agenda previa: coordiná tu visita por
+            WhatsApp.
+          </p>
+        </details>
+        <details>
+          <summary>¿Los precios están en dólares o en pesos?</summary>
+          <p>
+            Los equipos nuevos se publican en dólares y los seminuevos en pesos.
+            Con el botón de moneda podés ver todo en la que prefieras, según la
+            cotización del día.
+          </p>
+        </details>
+      </section>
 
-<section id="local"><div class="two">
-  <div class="box"><h2>Visitanos en Salto</h2><p>Espacio de atención personalizada para comprar tus equipos, conocer los modelos disponibles y recibir asesoramiento en un ambiente privado y cómodo.</p>
-    <p style="margin-top:12px"><b>Atención con agenda previa:</b> coordiná tu visita por WhatsApp.</p>
-    <!-- Mapa: si querés el pin exacto de tu ficha, en Google Maps → Compartir → Insertar un mapa, y pegá ese src acá -->
-    <div class="mapf"><iframe title="Ubicación de CelsMarket en Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=CelsMarket%20Salto%20Uruguay&amp;output=embed"></iframe></div>
-    <div class="cta" style="margin-top:20px"><a class="btn" href="https://www.google.com/maps/dir/?api=1&amp;destination=CelsMarket%20Salto%20Uruguay" target="_blank" rel="noopener">Cómo llegar</a><a class="btn alt wa-link" data-msg="Hola! Quiero coordinar una visita." href="#">Coordinar visita</a></div></div>
-  <div class="box" id="contacto"><h2>Contacto y redes</h2><p>Hablá directo con el dueño.</p><div class="links">
-    <a class="wa-link" href="#">WhatsApp · 091 070 450</a>
-    <a href="https://instagram.com/celsmarket" rel="noopener">Instagram · @celsmarket</a>
-    <a href="https://instagram.com/celsmarket_uy" rel="noopener">Instagram · @celsmarket_uy</a></div></div>
-</div></section></div>
-<footer><div class="wrap">© CelsMarket Uy · Salto, Uruguay</div></footer>
-<a class="wa-fab wa-link" href="#" aria-label="Escribir por WhatsApp">WhatsApp</a>
-<script src="/site.js"></script>
-</body>
+      <section id="local">
+        <div class="two">
+          <div class="box">
+            <h2>Visitanos en Salto</h2>
+            <p>
+              Espacio de atención personalizada para comprar tus equipos,
+              conocer los modelos disponibles y recibir asesoramiento en un
+              ambiente privado y cómodo.
+            </p>
+            <p style="margin-top: 12px">
+              <b>Atención con agenda previa:</b> coordiná tu visita por
+              WhatsApp.
+            </p>
+            <!-- Mapa: si querés el pin exacto de tu ficha, en Google Maps → Compartir → Insertar un mapa, y pegá ese src acá -->
+            <div class="mapf">
+              <iframe
+                title="Ubicación de CelsMarket en Google Maps"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?q=CelsMarket%20Salto%20Uruguay&amp;output=embed"
+              ></iframe>
+            </div>
+            <div class="cta" style="margin-top: 20px">
+              <a
+                class="btn alt wa-link"
+                data-msg="Hola! Quiero coordinar una visita."
+                href="#"
+                >Coordinar visita</a
+              ><a
+                class="btn"
+                href="https://www.google.com/maps/dir/?api=1&amp;destination=CelsMarket%20Salto%20Uruguay"
+                target="_blank"
+                rel="noopener"
+                >Cómo llegar</a
+              >
+            </div>
+          </div>
+          <div class="box" id="contacto">
+            <h2>Contacto y redes</h2>
+            <p>Hablá directo con el dueño.</p>
+            <div class="links">
+              <a class="wa-link" href="#">WhatsApp · 091 070 450</a>
+              <a href="https://instagram.com/celsmarket" rel="noopener"
+                >Instagram · @celsmarket</a
+              >
+              <a href="https://instagram.com/celsmarket_uy" rel="noopener"
+                >Instagram · @celsmarket_uy</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <footer><div class="wrap">© CelsMarket Uy · Salto, Uruguay</div></footer>
+    <a class="wa-fab wa-link" href="#" aria-label="Escribir por WhatsApp"
+      >WhatsApp</a
+    >
+    <script src="/site.js"></script>
+  </body>
 </html>
