@@ -68,7 +68,52 @@ async function photos(env,key){return (await cloudinaryAssets(env,key)).map(x=>x
 async function loadAll(env){const [a,b,c]=await Promise.all([readTab(env,env.TAB_SEMI_1||"Stock Seminuevos 1"),readTab(env,env.TAB_SEMI_2||"Stock Seminuevos 2"),readTab(env,env.TAB_SELLADOS||"Stock Sellados").catch(()=>[])]);const semi=[...a,...b].filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:norm(r[2]),color:cap(r[3]),costo:num(r[4]),precio:num(r[5]),bateria:bat(r[6]),estado:"Seminuevo",moneda:env.CURRENCY_SEMI||"UYU"}));const sealed=c.filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:"",color:cap(r[2]),costo:num(r[3]),precio:num(r[4]),bateria:"",estado:"Sellado",moneda:env.CURRENCY_SELLADOS||"USD"}));return [...sealed,...semi].map(x=>({...x,photoKey:slug(`${x.modelo} ${x.gb} ${x.color}`)}))}
 async function publicStock(env){const groups=new Map();for(const x of (await loadAll(env)).filter(x=>x.precio>0)){const k=[x.estado,x.modelo,x.gb,x.color,x.bateria,x.detalle,x.precio,x.moneda].join("|"),g=groups.get(k);if(g)g.cantidad++;else groups.set(k,{estado:x.estado,modelo:x.modelo,gb:x.gb,color:x.color,bateria:x.bateria,detalle:/^(nada|ninguno|-)?$/i.test(x.detalle)?"":x.detalle,precio:x.precio,moneda:x.moneda,cantidad:1,fotos:await photos(env,x.photoKey)})}return [...groups.values()]}
 function parseDate(v){if(typeof v==="number")return new Date(Date.UTC(1899,11,30)+v*86400000);const m=String(v||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?new Date(Date.UTC(+m[3],+m[2]-1,+m[1])):null}
-async function salesStats(env,month){const rows=(await readTab(env,env.TAB_VENTAS||"Ventas")).filter(r=>r[0]).map(r=>({nombre:norm(r[0]),costo:num(r[1])||0,venta:num(r[2])||0,fecha:parseDate(r[5]),ganancia:num(r[7])??((num(r[2])||0)-(num(r[1])||0))})).filter(x=>x.fecha),ym=d=>`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`,months=[...new Set(rows.map(x=>ym(x.fecha)))].sort(),sel=month&&months.includes(month)?month:months[months.length-1]||new Date().toISOString().slice(0,7),r=rows.filter(x=>ym(x.fecha)===sel),equipos=r.filter(x=>!/pr[eé]stamo|inter[eé]s/i.test(x.nombre)),fin=r.filter(x=>/pr[eé]stamo|inter[eé]s/i.test(x.nombre)),sum=(a,k)=>a.reduce((s,x)=>s+x[k],0),revenue=sum(equipos,"venta"),profit=sum(equipos,"ganancia"),[y,m]=sel.split("-").map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate(),max=Math.max(1,...r.map(x=>x.fecha.getUTCDate())),byDay=Array.from({length:max},(_,i)=>({dia:i+1,unidades:0}));equipos.forEach(x=>byDay[x.fecha.getUTCDate()-1].unidades++);const models=new Map();for(const x of equipos){const k=x.nombre.replace(/\s+(64|128|256|512|1024)\s*(gb)?$/i,""),o=models.get(k)||{modelo:k,unidades:0,facturado:0,ganancia:0};o.unidades++;o.facturado+=x.venta;o.ganancia+=x.ganancia;models.set(k,o)}return {month:sel,months,kpis:{unidades:equipos.length,facturado:revenue,ganancia:profit,margen:revenue?profit/revenue:0,ticketMedio:equipos.length?revenue/equipos.length:0,promedioDiario:equipos.length/max,financieroGanancia:sum(fin,"ganancia"),financieroMovimientos:fin.length},byDay,byModel:[...models.values()].sort((a,b)=>b.unidades-a.unidades||b.ganancia-a.ganancia).slice(0,10)}}
+const WEEKDAYS=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+async function salesStats(env,month){
+ const FIN=/pr[eé]stamo|inter[eé]s/i,stripGb=t=>t.replace(/\s+(64|128|256|512|1024)\s*(gb)?$/i,"");
+ const rows=(await readTab(env,env.TAB_VENTAS||"Ventas")).filter(r=>r[0]).map(r=>({nombre:norm(r[0]),costo:num(r[1])||0,venta:num(r[2])||0,fecha:parseDate(r[5]),ganancia:num(r[7])??((num(r[2])||0)-(num(r[1])||0))})).filter(x=>x.fecha);
+ const ym=d=>`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;
+ const uy=new Date(Date.now()-3*3600*1000),nowKey=ym(uy); // hora de Uruguay
+ const months=[...new Set(rows.map(x=>ym(x.fecha)))].sort();
+ const sel=month&&months.includes(month)?month:months[months.length-1]||nowKey;
+ const sum=(a,k)=>a.reduce((t,x)=>t+x[k],0),equiposDe=k=>rows.filter(x=>ym(x.fecha)===k&&!FIN.test(x.nombre));
+ const r=rows.filter(x=>ym(x.fecha)===sel),equipos=equiposDe(sel),fin=r.filter(x=>FIN.test(x.nombre));
+ const [y,m]=sel.split("-").map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate();
+ const current=sel===nowKey,dias=current?Math.min(Math.max(uy.getUTCDate(),1),last):last;
+ const maxDay=Math.max(dias,...r.map(x=>x.fecha.getUTCDate()));
+ const byDay=Array.from({length:maxDay},(_,i)=>({dia:i+1,unidades:0}));
+ equipos.forEach(x=>byDay[x.fecha.getUTCDate()-1].unidades++);
+ const revenue=sum(equipos,"venta"),profit=sum(equipos,"ganancia");
+
+ // ---- por modelo
+ const models=new Map();
+ for(const x of equipos){const k=model(stripGb(x.nombre)),o=models.get(k)||{modelo:k,unidades:0,facturado:0,ganancia:0};o.unidades++;o.facturado+=x.venta;o.ganancia+=x.ganancia;models.set(k,o)}
+ const all=[...models.values()].map(o=>({...o,margen:o.facturado?o.ganancia/o.facturado:0,gananciaUnidad:o.ganancia/o.unidades,pctUnidades:equipos.length?o.unidades/equipos.length:0,pctVentas:revenue?o.facturado/revenue:0,pctGanancia:profit?o.ganancia/profit:0}));
+ const best=(k,min=1)=>[...all].filter(o=>o.unidades>=min).sort((p,q)=>q[k]-p[k]||q.unidades-p.unidades)[0]||null;
+
+ // ---- día de la semana
+ const wd=WEEKDAYS.map(dia=>({dia,unidades:0,ganancia:0}));
+ equipos.forEach(x=>{const w=wd[x.fecha.getUTCDay()];w.unidades++;w.ganancia+=x.ganancia});
+ const byWeekday=[1,2,3,4,5,6,0].map(i=>wd[i]),mejorDia=[...byWeekday].sort((p,q)=>q.unidades-p.unidades||q.ganancia-p.ganancia)[0];
+
+ // ---- ritmo del mes y comparación con el mes anterior
+ const proyeccion=current&&dias>=5&&dias<last?{dias,diasMes:last,unidades:Math.round(equipos.length*last/dias),facturado:Math.round(revenue*last/dias),ganancia:Math.round(profit*last/dias)}:null;
+ const pi=months.indexOf(sel);let anterior=null;
+ if(pi>0){const k=months[pi-1],pe=equiposDe(k),pr={unidades:pe.length,facturado:sum(pe,"venta"),ganancia:sum(pe,"ganancia")},base=proyeccion||{unidades:equipos.length,facturado:revenue,ganancia:profit},d=(a,b)=>b?a/b-1:null;
+  anterior={month:k,...pr,vsUnidades:d(base.unidades,pr.unidades),vsFacturado:d(base.facturado,pr.facturado),vsGanancia:d(base.ganancia,pr.ganancia),proyectado:!!proyeccion}}
+
+ // ---- stock vs ventas: qué reponer y qué plata está parada
+ const stock=await loadAll(env),stockBy=new Map();
+ for(const i of stock){const k=model(stripGb(i.modelo)),o=stockBy.get(k)||{modelo:k,equipos:0,capital:{}};o.equipos++;o.capital[i.moneda]=(o.capital[i.moneda]||0)+(i.costo||0);stockBy.set(k,o)}
+ const reponer=all.filter(o=>o.unidades>=2&&!stockBy.has(o.modelo)).sort((p,q)=>q.ganancia-p.ganancia).slice(0,5).map(o=>({modelo:o.modelo,unidades:o.unidades,ganancia:o.ganancia,gananciaUnidad:o.gananciaUnidad}));
+ const inmovilizado=[...stockBy.values()].filter(o=>!models.has(o.modelo)).map(o=>({modelo:o.modelo,equipos:o.equipos,capital:Object.entries(o.capital).map(([moneda,monto])=>({moneda,monto}))})).sort((p,q)=>q.capital.reduce((t,c)=>t+c.monto,0)-p.capital.reduce((t,c)=>t+c.monto,0)).slice(0,6);
+
+ return {month:sel,months,dias,diasMes:last,current,
+  kpis:{unidades:equipos.length,facturado:revenue,ganancia:profit,margen:revenue?profit/revenue:0,ticketMedio:equipos.length?revenue/equipos.length:0,promedioDiario:dias?equipos.length/dias:0,financieroGanancia:sum(fin,"ganancia"),financieroMovimientos:fin.length},
+  byDay,byModel:[...all].sort((p,q)=>q.unidades-p.unidades||q.ganancia-p.ganancia).slice(0,10),
+  highlights:{masVendido:best("unidades"),masVentas:best("facturado"),masGanancia:best("ganancia"),mejorMargen:best("margen",2),mejorPorUnidad:best("gananciaUnidad",2)},
+  byWeekday,mejorDia:mejorDia&&mejorDia.unidades?mejorDia:null,proyeccion,anterior,reponer,inmovilizado}
+}
 async function stockValue(env){const a=await loadAll(env);return ["UYU","USD"].map(moneda=>{const x=a.filter(i=>i.moneda===moneda&&i.precio>0),costo=x.reduce((s,i)=>s+(i.costo||0),0),venta=x.reduce((s,i)=>s+i.precio,0);return {moneda,equipos:x.length,costo,venta,ganancia:venta-costo}}).filter(x=>x.equipos)}
 async function debts(env){const rows=(await readTab(env,env.TAB_DEUDORES||"Deudores")).filter(r=>r[0]),list=rows.map(r=>{const detalle=norm(r[2]),grupo=/iphone|samsung|macbook/i.test(detalle)?"Equipos":/pr[eé]stamo|inversi/i.test(detalle)?"Préstamos e inversión":"Otros";return {nombre:norm(r[0]),monto:num(r[1])||0,detalle,grupo}}).sort((a,b)=>b.monto-a.monto),grupos={};list.forEach(x=>{grupos[x.grupo]||={total:0,cantidad:0};grupos[x.grupo].total+=x.monto;grupos[x.grupo].cantidad++});return {total:list.reduce((s,x)=>s+x.monto,0),grupos,list}}
 async function cash(env){const rows=await readTab(env,env.TAB_CAJA||"Caja"),names=["Préstamos","Publicidad","Gastos P","Ganancias","Invertido","Facturación"];return names.map((concepto,i)=>({concepto,importe:num((rows[0]||[])[i])})).filter(x=>x.importe!==null)}
@@ -108,5 +153,12 @@ async function route(req,env){const u=new URL(req.url),p=u.pathname,m=req.method
  }
  if(p==="/api/admin/settings"&&m==="GET")return json(await settings(env));
  if(p==="/api/admin/settings"&&m==="PUT"){const b=await req.json().catch(()=>({})),v=Number(b.rateOverride);return json(await saveSettings(env,{rateOverride:v>0&&v<1000?v:null}))}
+ if(p==="/api/admin/diagnostico"&&m==="GET"){
+  sheetCache.clear();googleCache=null;
+  const tabs=[env.TAB_SEMI_1||"Stock Seminuevos 1",env.TAB_SEMI_2||"Stock Seminuevos 2",env.TAB_SELLADOS||"Stock Sellados",env.TAB_VENTAS||"Ventas",env.TAB_DEUDORES||"Deudores",env.TAB_CAJA||"Caja"];
+  const out={secretos:Object.fromEntries(["SHEET_ID","GOOGLE_SERVICE_ACCOUNT_JSON","ADMIN_PASSWORD","SESSION_SECRET","CLOUDINARY_CLOUD_NAME","CLOUDINARY_API_KEY","CLOUDINARY_API_SECRET"].map(k=>[k,!!env[k]])),cuenta:null,google:null,pestanas:[]};
+  try{const sa=JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON||"{}");out.cuenta=sa.client_email||null;await googleToken(env);out.google="ok"}catch(e){out.google=String(e&&e.message||e)}
+  if(out.google==="ok")for(const t of tabs){try{out.pestanas.push({tab:t,filas:(await readTab(env,t)).length})}catch(e){out.pestanas.push({tab:t,error:String(e&&e.message||e)})}}
+  return json(out)}
  return env.ASSETS.fetch(req)}
 export default {async fetch(req,env){try{const res=await route(req,env);if(new URL(req.url).pathname.startsWith("/api/admin/")){const r2=new Response(res.body,res);r2.headers.set("cache-control","no-store");return r2}return res}catch(e){console.error(e);return json({error:"Error interno del servidor",detail:env.ENVIRONMENT==="development"?String(e.message):undefined},500)}}};

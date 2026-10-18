@@ -1,7 +1,7 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const LIMIT = 4; // tarjetas visibles antes de "Ver todo"
-  const state = { items: [], f: 'all', q: '', mdl: 'all', sort: 'rel', open: false, cur: 'USD', rate: 40, wa: '59891070450' };
+  const state = { items: [], f: 'all', q: '', sort: 'rel', open: false, cur: 'USD', rate: 40, wa: '59891070450' };
   const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const nf = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 0 });
@@ -28,22 +28,12 @@
     const hay = norm([it.modelo, it.gb, it.color, it.estado, it.detalle, it.bateria].join(' '));
     return toks.every((t) => hay.includes(t));
   }
-  const filtersActive = () => state.f !== 'all' || state.q.trim() !== '' || state.mdl !== 'all' || state.sort !== 'rel';
+  const filtersActive = () => state.f !== 'all' || state.q.trim() !== '' || state.sort !== 'rel';
 
   function renderTabs() {
     $('#tabs').innerHTML = TABS.map(([k, l]) => [k, l, state.items.filter((x) => byTab(x, k)).length])
       .filter(([k, , n]) => n > 0 || k === 'all')
       .map(([k, l, n]) => `<button class="tab ${state.f === k ? 'on' : ''}" role="tab" aria-selected="${state.f === k}" data-f="${esc(k)}">${esc(l)}<small>${n}</small></button>`).join('');
-  }
-
-  // Todos los modelos que hay en stock: iPhone del más nuevo al más viejo, MacBook al final
-  function renderModels() {
-    const num = (n) => Number((n.match(/iPhone (\d+)/) || [0, -1])[1]);
-    const models = [...new Set(state.items.map((x) => x.modelo))].sort((a, b) => num(b) - num(a) || a.localeCompare(b));
-    if (state.mdl !== 'all' && !models.includes(state.mdl)) state.mdl = 'all'; // ya no hay de ese modelo
-    const sel = $('#mdl');
-    sel.innerHTML = '<option value="all">Modelo: todos</option>' + models.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
-    sel.value = state.mdl;
   }
 
   /* ---------- tarjetas ---------- */
@@ -60,7 +50,7 @@
   }
 
   function renderGrid() {
-    let list = state.items.filter((x) => byTab(x, state.f) && byQuery(x) && (state.mdl === 'all' || x.modelo === state.mdl));
+    let list = state.items.filter((x) => byTab(x, state.f) && byQuery(x));
     if (state.sort !== 'rel') list = [...list].sort((a, b) => (state.sort === 'asc' ? 1 : -1) * (priceNum(a) - priceNum(b)));
     const total = list.length;
     const shown = state.open ? list : list.slice(0, LIMIT);
@@ -80,10 +70,10 @@
     document.querySelectorAll('[data-cur]').forEach((b) => b.classList.toggle('on', b.dataset.cur === state.cur));
     $('#rateNote').textContent = state.cur === 'UYU' ? `Los precios en dólares se muestran en pesos a $ ${state.rate.toFixed(2).replace('.', ',')} por dólar. Consultá la cotización del día.` : 'Precios en dólares.';
   }
-  function render() { renderTabs(); renderModels(); renderGrid(); }
+  function render() { renderTabs(); renderGrid(); }
 
   function clearAll() {
-    Object.assign(state, { f: 'all', q: '', mdl: 'all', sort: 'rel', open: false });
+    Object.assign(state, { f: 'all', q: '', sort: 'rel', open: false });
     $('#q').value = ''; $('#sort').value = 'rel';
     render();
   }
@@ -116,7 +106,6 @@
 
   $('#q').addEventListener('input', (e) => { state.q = e.target.value; state.open = false; renderGrid(); });
   $('#sort').addEventListener('change', (e) => { state.sort = e.target.value; renderGrid(); });
-  $('#mdl').addEventListener('change', (e) => { state.mdl = e.target.value; state.open = false; renderGrid(); });
   $('#clear').addEventListener('click', clearAll);
   $('#seeall').addEventListener('click', () => {
     state.open = !state.open; renderGrid();
