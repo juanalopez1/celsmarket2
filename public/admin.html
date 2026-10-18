@@ -10,13 +10,13 @@
 </head>
 <body>
 <div id="login" class="login hide">
-  <img src="/logo.png" alt="CelsMarket Uy" style="height:90px;width:auto;align-self:center">
-  <label style="display:flex;flex-direction:column;gap:8px;color:#c3c7d0">Contraseña<input id="pw" class="in" type="password" autocomplete="current-password"></label>
+  <img src="/logo.png" alt="CelsMarket Uy">
+  <label>Contraseña<input id="pw" class="in" type="password" autocomplete="current-password"></label>
   <button id="go" class="btn">Entrar</button><p id="loginMsg" class="msg"></p>
 </div>
 <div id="app" class="wrap hide">
-  <header class="top"><div style="display:flex;align-items:center;gap:14px"><img src="/logo.png" alt="CelsMarket Uy" style="height:56px;width:auto"><span class="badge">Panel privado</span></div><button class="out" id="logout">Cerrar sesión</button></header>
-  <div class="tabs" id="tabs"></div>
+  <header class="nav"><img src="/logo.png" alt="CelsMarket Uy"><div class="navr"><span class="pill">Panel privado</span><button class="btn alt" id="logout">Cerrar sesión</button></div></header>
+  <div class="tabs" id="tabs" role="tablist"></div>
   <main id="view"></main>
 </div>
 <script src="/admin.js"></script>
