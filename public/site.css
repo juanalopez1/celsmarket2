@@ -90,7 +90,7 @@ section{scroll-margin-top:8px}
 .tab{flex:none;white-space:nowrap;padding:12px 4px;margin-right:24px;background:none;border:0;border-bottom:2px solid transparent;color:#9aa0ad;font:500 16px 'Outfit',sans-serif;cursor:pointer;transition:color .18s ease,border-color .18s ease}
 .tab.on{color:#fff;border-color:#f59a0b}.tab small{opacity:.6;margin-left:6px;font-size:12px}
 .fwrap .cur{grid-column:3;justify-self:end;margin-bottom:6px}
-.fwrap .search{grid-column:1}.fwrap .serie{grid-column:2}.fwrap .sortsel:last-child{grid-column:3}
+.fwrap .search{grid-column:1}.fwrap .sortsel{grid-column:2/4}
 .cline{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:6px 0 18px}.cline .count{margin:0}
 .clear{background:none;border:0;padding:6px 0;min-height:36px;color:#c3c7d0;font:500 14px 'Outfit',sans-serif;cursor:pointer;transition:color .18s ease}
 .clear[hidden]{display:none}
@@ -124,7 +124,12 @@ section{scroll-margin-top:8px}
   .fwrap{grid-template-columns:1fr 1fr}
   .ftabs{grid-column:1/-1}
   .fwrap .search{grid-column:1/-1}
-  .fwrap .serie{grid-column:1}.fwrap .sortsel:last-child{grid-column:2}
+  .fwrap .sortsel{grid-column:1/-1}
   .fwrap .cur{grid-column:1/-1;justify-self:start;order:5;margin:4px 0 0}
   .sortsel{padding:0 14px}
 }
+
+/* ---------- Hero a pantalla completa: el stock arranca recién al hacer scroll ---------- */
+:root{--nav-h:96px}
+.hero{min-height:calc(100vh - var(--nav-h));min-height:calc(100svh - var(--nav-h));align-content:center;padding:24px 0}
+@media (max-width:640px){:root{--nav-h:64px}}
