@@ -12,13 +12,15 @@ async function googleToken(env){
  const sa=JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON||"{}");if(!sa.client_email||!sa.private_key)throw Error("Falta GOOGLE_SERVICE_ACCOUNT_JSON");
  const pem=sa.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,""),bin=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));
  const key=await crypto.subtle.importKey("pkcs8",bin,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]),now=Math.floor(Date.now()/1000);
- const head=b64u(enc(JSON.stringify({alg:"RS256",typ:"JWT"}))),claim=b64u(enc(JSON.stringify({iss:sa.client_email,scope:"https://www.googleapis.com/auth/spreadsheets.readonly",aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600}))),unsigned=head+"."+claim;
+ const head=b64u(enc(JSON.stringify({alg:"RS256",typ:"JWT"}))),claim=b64u(enc(JSON.stringify({iss:sa.client_email,scope:"https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600}))),unsigned=head+"."+claim;
  const sig=b64u(new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,enc(unsigned))));
  const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:unsigned+"."+sig})}),j=await r.json();
  if(!r.ok)throw Error("Google OAuth: "+(j.error_description||j.error||r.status));googleCache={token:j.access_token,exp:Date.now()+(j.expires_in||3600)*1000};return j.access_token;
 }
 const sheetCache=new Map();
-async function readTab(env,tab){const hit=sheetCache.get(tab);if(hit&&Date.now()-hit.at<60000)return hit.rows;const tok=await googleToken(env),range=encodeURIComponent("'"+tab+"'");const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(env.SHEET_ID)}/values/${range}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`,{headers:{Authorization:"Bearer "+tok}}),j=await r.json();if(!r.ok){if(hit)return hit.rows;throw Error("Google Sheets: "+(j.error?.message||r.status))}const rows=(j.values||[]).slice(1);sheetCache.set(tab,{at:Date.now(),rows});return rows}
+let sheetMemo=null;
+async function activeSheet(env){if(sheetMemo&&Date.now()-sheetMemo.at<10000)return sheetMemo.id;const s=await settings(env),id=s.planilla?.activa?.id||env.SHEET_ID;sheetMemo={id,at:Date.now()};return id}
+async function readTab(env,tab,sid){const id=sid||await activeSheet(env),key=id+"|"+tab,hit=sheetCache.get(key);if(hit&&Date.now()-hit.at<60000)return hit.rows;const tok=await googleToken(env),range=encodeURIComponent("'"+tab+"'");const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${range}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`,{headers:{Authorization:"Bearer "+tok}}),j=await r.json();if(!r.ok){if(hit)return hit.rows;throw Error("Google Sheets: "+(j.error?.message||r.status))}const rows=(j.values||[]).slice(1);sheetCache.set(key,{at:Date.now(),rows});return rows}
 const norm=s=>String(s??"").trim().replace(/\s+/g," "), cap=s=>{s=norm(s);return s?s[0].toUpperCase()+s.slice(1).toLowerCase():""};
 const slug=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,120);
 const num=v=>{if(typeof v==="number")return v;const n=parseFloat(String(v??"").replace(/[^\d.,-]/g,"").replace(/\./g,"").replace(",", "."));return Number.isFinite(n)?n:null};
@@ -68,10 +70,11 @@ async function photos(env,key){return (await cloudinaryAssets(env,key)).map(x=>x
 async function loadAll(env){const [a,b,c]=await Promise.all([readTab(env,env.TAB_SEMI_1||"Stock Seminuevos 1"),readTab(env,env.TAB_SEMI_2||"Stock Seminuevos 2"),readTab(env,env.TAB_SELLADOS||"Stock Sellados").catch(()=>[])]);const semi=[...a,...b].filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:norm(r[2]),color:cap(r[3]),costo:num(r[4]),precio:num(r[5]),bateria:bat(r[6]),estado:"Seminuevo",moneda:env.CURRENCY_SEMI||"UYU"}));const sealed=c.filter(r=>r[0]&&!isTotal(r)).map(r=>({modelo:model(r[0]),gb:gb(r[1]),detalle:"",color:cap(r[2]),costo:num(r[3]),precio:num(r[4]),bateria:"",estado:"Sellado",moneda:env.CURRENCY_SELLADOS||"USD"}));return [...sealed,...semi].map(x=>({...x,photoKey:slug(`${x.modelo} ${x.gb} ${x.color}`)}))}
 async function publicStock(env){const groups=new Map();for(const x of (await loadAll(env)).filter(x=>x.precio>0)){const k=[x.estado,x.modelo,x.gb,x.color,x.bateria,x.detalle,x.precio,x.moneda].join("|"),g=groups.get(k);if(g)g.cantidad++;else groups.set(k,{estado:x.estado,modelo:x.modelo,gb:x.gb,color:x.color,bateria:x.bateria,detalle:/^(nada|ninguno|-)?$/i.test(x.detalle)?"":x.detalle,precio:x.precio,moneda:x.moneda,cantidad:1,fotos:await photos(env,x.photoKey)})}return [...groups.values()]}
 function parseDate(v){if(typeof v==="number")return new Date(Date.UTC(1899,11,30)+v*86400000);const m=String(v||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?new Date(Date.UTC(+m[3],+m[2]-1,+m[1])):null}
+async function ventasRows(env){const s=await settings(env),ids=[...new Set([s.planilla?.activa?.id||env.SHEET_ID,...(s.planilla?.archivo||[]).map(a=>a.id)])],tab=env.TAB_VENTAS||"Ventas",out=[];for(const [i,id] of ids.entries()){try{out.push(...await readTab(env,tab,id))}catch(e){if(i===0)throw e}}return out}
 const WEEKDAYS=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 async function salesStats(env,month){
  const FIN=/pr[eé]stamo|inter[eé]s/i,stripGb=t=>t.replace(/\s+(64|128|256|512|1024)\s*(gb)?$/i,"");
- const rows=(await readTab(env,env.TAB_VENTAS||"Ventas")).filter(r=>r[0]).map(r=>({nombre:norm(r[0]),costo:num(r[1])||0,venta:num(r[2])||0,fecha:parseDate(r[5]),ganancia:num(r[7])??((num(r[2])||0)-(num(r[1])||0))})).filter(x=>x.fecha);
+ const rows=(await ventasRows(env)).filter(r=>r[0]).map(r=>({nombre:norm(r[0]),costo:num(r[1])||0,venta:num(r[2])||0,fecha:parseDate(r[5]),ganancia:num(r[7])??((num(r[2])||0)-(num(r[1])||0))})).filter(x=>x.fecha);
  const ym=d=>`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;
  const uy=new Date(Date.now()-3*3600*1000),nowKey=ym(uy); // hora de Uruguay
  const months=[...new Set(rows.map(x=>ym(x.fecha)))].sort();
@@ -122,6 +125,85 @@ async function saveSettings(env,v){const next={...(await settings(env)),...v};aw
 let rateCache=null;
 async function getRate(env){const s=await settings(env);if(s.rateOverride>0)return {rate:s.rateOverride,source:"manual"};if(rateCache&&Date.now()-rateCache.at<1800000)return {rate:rateCache.rate,source:"mercado"};try{const r=await fetch("https://open.er-api.com/v6/latest/USD"),j=await r.json();if(j.rates?.UYU>0){rateCache={rate:Math.round(j.rates.UYU*100)/100,at:Date.now()};return {rate:rateCache.rate,source:"mercado"}}}catch{}return {rate:Number(env.RATE_FALLBACK)||40,source:"fallback"}}
 async function photoSlots(env){const map=new Map();for(const x of await loadAll(env)){let s=map.get(x.photoKey);if(!s){s={key:x.photoKey,modelo:x.modelo,gb:x.gb,color:x.color,equipos:0,fotos:await cloudinaryAssets(env,x.photoKey).then(a=>a.map(z=>({url:z.secure_url,id:z.public_id})))};map.set(x.photoKey,s)}s.equipos++}return [...map.values()].sort((a,b)=>a.fotos.length-b.fotos.length||a.modelo.localeCompare(b.modelo))}
+// ---------- Registrar venta: escribe en la planilla (Ventas + borra del stock) ----------
+async function gfetch(env,url,init={}){const tok=await googleToken(env),r=await fetch(url,{...init,headers:{Authorization:"Bearer "+tok,"content-type":"application/json",...(init.headers||{})}}),j=await r.json().catch(()=>({}));if(!r.ok)throw Error("Google: "+(j.error?.message||r.status));return j}
+async function sheetsCall(env,path,init={},sid){const id=sid||await activeSheet(env);try{return await gfetch(env,`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}`+path,init)}catch(e){throw Error(String(e.message).replace(/^Google: /,"Google Sheets: "))}}
+const stockTabs=env=>[{tab:env.TAB_SEMI_1||"Stock Seminuevos 1",sellado:false},{tab:env.TAB_SEMI_2||"Stock Seminuevos 2",sellado:false},{tab:env.TAB_SELLADOS||"Stock Sellados",sellado:true}];
+function parseStockRow(env,t,r,fila){if(!r||!r[0]||isTotal(r))return null;return t.sellado?{tab:t.tab,fila,modelo:model(r[0]),gb:gb(r[1]),detalle:"",color:cap(r[2]),costo:num(r[3]),precio:num(r[4]),bateria:"",estado:"Sellado",moneda:env.CURRENCY_SELLADOS||"USD"}:{tab:t.tab,fila,modelo:model(r[0]),gb:gb(r[1]),detalle:norm(r[2]),color:cap(r[3]),costo:num(r[4]),precio:num(r[5]),bateria:bat(r[6]),estado:"Seminuevo",moneda:env.CURRENCY_SEMI||"UYU"}}
+async function stockRows(env){const out=[];for(const t of stockTabs(env)){const rows=await readTab(env,t.tab).catch(()=>[]);rows.forEach((r,i)=>{const x=parseStockRow(env,t,r,i+2);if(x&&x.precio>0)out.push(x)})}return out}
+async function liveRow(env,t,fila){const j=await sheetsCall(env,`/values/${encodeURIComponent(`'${t.tab}'!A${fila}:H${fila}`)}?valueRenderOption=UNFORMATTED_VALUE`);return parseStockRow(env,t,(j.values||[])[0],fila)}
+const uyDate=()=>{const d=new Date(Date.now()-3*3600*1000);return `${d.getUTCDate()}/${d.getUTCMonth()+1}/${d.getUTCFullYear()}`};
+async function registrarVenta(env,b){
+ try{return await registrarVenta0(env,b)}catch(err){const msg=String(err&&err.message||err);console.error(err);
+  return json({error:/permission|403/i.test(msg)?"La cuenta de servicio no tiene permiso de Editor en la planilla. Compartila de nuevo con permiso de Editor.":"No se pudo registrar la venta: "+msg},502)}}
+async function registrarVenta0(env,b){
+ const t=stockTabs(env).find(x=>x.tab===b.tab);if(!t)return json({error:"Pestaña inválida"},400);
+ const fila=Number(b.fila);if(!Number.isInteger(fila)||fila<2||fila>5000)return json({error:"Fila inválida"},400);
+ const pv=num(b.precioVenta);if(!(pv>0))return json({error:"Falta el precio de venta"},400);
+ const rid=String(b.reqId||"");if(!/^[a-z0-9-]{8,64}$/.test(rid))return json({error:"Falta el identificador de la operación"},400);
+ const prev=await env.SETTINGS.get("venta:"+rid,"json");if(prev)return json({...prev,duplicado:true});
+ const x=await liveRow(env,t,fila),e=b.esperado||{};
+ if(!x||model(e.modelo)!==x.modelo||cap(e.color)!==x.color||gb(e.gb)!==x.gb)return json({error:"La planilla cambió y esa fila ya no es el mismo equipo. Recargá la lista e intentá de nuevo."},409);
+ const rate=x.moneda==="USD"?(await getRate(env)).rate:1,costo=Math.round((x.costo||0)*rate),venta=Math.round(pv);
+ const fecha=/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(b.fecha||"")?b.fecha:uyDate();
+ const gbn=parseInt(x.gb)||0,nombre=x.modelo+(gbn>=256?" "+gbn:"");
+ const row=[nombre,costo,venta,x.bateria||"100%",x.detalle||"Nada",fecha,x.color,venta-costo];
+ const ap=await sheetsCall(env,`/values/${encodeURIComponent(`'${env.TAB_VENTAS||"Ventas"}'!A:H`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{method:"POST",body:JSON.stringify({values:[row]})});
+ let borrado=true,aviso=null;
+ try{const meta=await sheetsCall(env,"?fields=sheets.properties(sheetId,title)"),sid=meta.sheets?.find(s=>s.properties.title===t.tab)?.properties.sheetId;
+  if(sid==null)throw Error("no se encontró la pestaña");
+  await sheetsCall(env,":batchUpdate",{method:"POST",body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId:sid,dimension:"ROWS",startIndex:fila-1,endIndex:fila}}}]})})}
+ catch(err){borrado=false;aviso="La venta se registró, pero no se pudo borrar el equipo del stock ("+err.message+"). Borralo a mano en la planilla."}
+ sheetCache.clear();
+ const res={ok:true,venta:{nombre,color:x.color,costo,precioVenta:venta,ganancia:venta-costo,fecha},stockBorrado:borrado,aviso,fila:ap.updates?.updatedRange||null};
+ await env.SETTINGS.put("venta:"+rid,JSON.stringify(res),{expirationTtl:600});
+ return json(res)}
+// ---------- Mes nuevo: planilla nueva con la misma estructura ----------
+const MESES_ES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const mesNombre=ym=>{const [y,m]=ym.split("-").map(Number),n=MESES_ES[m-1];return n[0].toUpperCase()+n.slice(1)+" "+y};
+const sheetUrl=id=>`https://docs.google.com/spreadsheets/d/${id}/edit`;
+const resetSheets=()=>{sheetMemo=null;sheetCache.clear()};
+async function planillaInfo(env){const s=await settings(env),pl=s.planilla||{},id=pl.activa?.id||env.SHEET_ID;let nombre=pl.activa?.nombre||null;
+ if(!nombre){try{nombre=(await sheetsCall(env,"?fields=properties.title",{},id)).properties?.title||null}catch{}}
+ return {activa:{id,nombre,url:sheetUrl(id)},archivo:(pl.archivo||[]).map(a=>({...a,url:sheetUrl(a.id)})),email:s.ownerEmail||""}}
+async function nuevoMes(env,b){
+ const mes=/^\d{4}-(0[1-9]|1[0-2])$/.test(b.mes||"")?b.mes:null;if(!mes)return json({error:"Elegí el mes"},400);
+ const email=String(b.email||"").trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json({error:"Poné el email de Google del dueño: ahí se comparte la planilla nueva."},400);
+ const rid=String(b.reqId||"");if(!/^[a-z0-9-]{8,64}$/.test(rid))return json({error:"Falta el identificador de la operación"},400);
+ const prev=await env.SETTINGS.get("mes:"+rid,"json");if(prev)return json({...prev,duplicado:true});
+ const opt={stock:b.pasar?.stock!==false,deudores:b.pasar?.deudores!==false,caja:b.pasar?.caja===true};
+ const src=await activeSheet(env),meta=await sheetsCall(env,"?fields=properties(title,locale,timeZone),sheets.properties(sheetId,title,index)",{},src);
+ const title="CelsMarket · "+mesNombre(mes);
+ const nuevo=await gfetch(env,"https://sheets.googleapis.com/v4/spreadsheets",{method:"POST",body:JSON.stringify({properties:{title,locale:meta.properties?.locale,timeZone:meta.properties?.timeZone}})});
+ const dst=nuevo.spreadsheetId,blank=nuevo.sheets?.[0]?.properties?.sheetId;
+ try{
+  // primero compartir: si no se puede, no dejamos una planilla que el dueño no pueda abrir
+  await gfetch(env,`https://www.googleapis.com/drive/v3/files/${dst}/permissions?sendNotificationEmail=false&supportsAllDrives=true`,{method:"POST",body:JSON.stringify({type:"user",role:"writer",emailAddress:email})});
+  const tabs=[...(meta.sheets||[])].map(s=>s.properties).sort((a,b)=>a.index-b.index),copies=[];
+  for(const t of tabs){const c=await gfetch(env,`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(src)}/sheets/${t.sheetId}:copyTo`,{method:"POST",body:JSON.stringify({destinationSpreadsheetId:dst})});copies.push({sheetId:c.sheetId,title:t.title})}
+  await gfetch(env,`https://sheets.googleapis.com/v4/spreadsheets/${dst}:batchUpdate`,{method:"POST",body:JSON.stringify({requests:[{deleteSheet:{sheetId:blank}},...copies.map(c=>({updateSheetProperties:{properties:{sheetId:c.sheetId,title:c.title},fields:"title"}}))]})});
+  const has=n=>copies.some(c=>c.title===n),clear=[],add=(n,on)=>{if(!on&&has(n))clear.push(`'${n}'!A2:Z`)};
+  add(env.TAB_VENTAS||"Ventas",false);add(env.TAB_SEMI_1||"Stock Seminuevos 1",opt.stock);add(env.TAB_SEMI_2||"Stock Seminuevos 2",opt.stock);add(env.TAB_SELLADOS||"Stock Sellados",opt.stock);add(env.TAB_DEUDORES||"Deudores",opt.deudores);add(env.TAB_CAJA||"Caja",opt.caja);
+  if(clear.length)await gfetch(env,`https://sheets.googleapis.com/v4/spreadsheets/${dst}/values:batchClear`,{method:"POST",body:JSON.stringify({ranges:clear})});
+ }catch(err){
+  try{await gfetch(env,`https://www.googleapis.com/drive/v3/files/${dst}`,{method:"DELETE"})}catch{}  // no dejamos planillas a medio hacer
+  throw err}
+ const cur=await settings(env),pl=cur.planilla||{},oldName=pl.activa?.nombre||meta.properties?.title||"Planilla anterior";
+ await saveSettings(env,{ownerEmail:email,planilla:{activa:{id:dst,nombre:title,creada:uyDate()},archivo:[{id:src,nombre:oldName},...(pl.archivo||[])].slice(0,36)}});
+ resetSheets();
+ const res={ok:true,planilla:{id:dst,nombre:title,url:sheetUrl(dst)},anterior:{id:src,nombre:oldName,url:sheetUrl(src)}};
+ await env.SETTINGS.put("mes:"+rid,JSON.stringify(res),{expirationTtl:600});
+ return json(res)}
+async function activarPlanilla(env,b){
+ const s=await settings(env),pl=s.planilla||{},arch=pl.archivo||[],t=arch.find(a=>a.id===b.id);if(!t)return json({error:"Esa planilla no está en la lista"},400);
+ await sheetsCall(env,"?fields=properties.title",{},t.id); // comprueba que todavía hay acceso
+ const curId=pl.activa?.id||env.SHEET_ID,curName=pl.activa?.nombre||"Planilla anterior";
+ await saveSettings(env,{planilla:{activa:{id:t.id,nombre:t.nombre},archivo:[{id:curId,nombre:curName},...arch.filter(a=>a.id!==t.id)]}});resetSheets();
+ return json({ok:true})}
+const safe=(fn,what)=>async(env,b)=>{try{return await fn(env,b)}catch(err){const msg=String(err&&err.message||err);console.error(err);
+ const hint=/Drive API|SERVICE_DISABLED|has not been used/i.test(msg)?"Falta activar la API de Google Drive en el proyecto de Google Cloud (la misma donde está la cuenta de servicio).":/permission|403/i.test(msg)?"La cuenta de servicio no tiene permiso para hacerlo. Revisá que sea Editor de la planilla.":"";
+ return json({error:`${what}: ${msg}${hint?" "+hint:""}`},502)}};
+const nuevoMesSafe=safe(nuevoMes,"No se pudo crear el mes nuevo"),activarSafe=safe(activarPlanilla,"No se pudo cambiar de planilla");
 async function route(req,env){const u=new URL(req.url),p=u.pathname,m=req.method;
  if(p.startsWith("/api/admin/")&&p!=="/api/admin/login"&&!(await admin(req,env)))return json({error:"No autorizado"},401);
  if(p==="/api/admin/login"&&m==="POST"){const b=await req.json().catch(()=>({}));if(!env.ADMIN_PASSWORD||b.password!==env.ADMIN_PASSWORD)return json({error:"Contraseña incorrecta"},401);return json({ok:true},200,{"set-cookie":cookie(await token(env),SESSION,new URL(req.url).protocol==="https:")})}
@@ -153,11 +235,16 @@ async function route(req,env){const u=new URL(req.url),p=u.pathname,m=req.method
  }
  if(p==="/api/admin/settings"&&m==="GET")return json(await settings(env));
  if(p==="/api/admin/settings"&&m==="PUT"){const b=await req.json().catch(()=>({})),v=Number(b.rateOverride);return json(await saveSettings(env,{rateOverride:v>0&&v<1000?v:null}))}
+ if(p==="/api/admin/planilla"&&m==="GET")return json(await planillaInfo(env));
+ if(p==="/api/admin/planilla/nuevo"&&m==="POST")return nuevoMesSafe(env,await req.json().catch(()=>({})));
+ if(p==="/api/admin/planilla/activar"&&m==="POST")return activarSafe(env,await req.json().catch(()=>({})));
+ if(p==="/api/admin/stock-rows"&&m==="GET")return json(await stockRows(env));
+ if(p==="/api/admin/venta"&&m==="POST")return registrarVenta(env,await req.json().catch(()=>({})));
  if(p==="/api/admin/diagnostico"&&m==="GET"){
-  sheetCache.clear();googleCache=null;
+  sheetCache.clear();sheetMemo=null;googleCache=null;
   const tabs=[env.TAB_SEMI_1||"Stock Seminuevos 1",env.TAB_SEMI_2||"Stock Seminuevos 2",env.TAB_SELLADOS||"Stock Sellados",env.TAB_VENTAS||"Ventas",env.TAB_DEUDORES||"Deudores",env.TAB_CAJA||"Caja"];
   const out={secretos:Object.fromEntries(["SHEET_ID","GOOGLE_SERVICE_ACCOUNT_JSON","ADMIN_PASSWORD","SESSION_SECRET","CLOUDINARY_CLOUD_NAME","CLOUDINARY_API_KEY","CLOUDINARY_API_SECRET"].map(k=>[k,!!env[k]])),cuenta:null,google:null,pestanas:[]};
-  try{const sa=JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON||"{}");out.cuenta=sa.client_email||null;await googleToken(env);out.google="ok"}catch(e){out.google=String(e&&e.message||e)}
+  try{const sa=JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON||"{}");out.cuenta=sa.client_email||null;await googleToken(env);out.google="ok";out.planilla=(await planillaInfo(env)).activa}catch(e){out.google=String(e&&e.message||e)}
   if(out.google==="ok")for(const t of tabs){try{out.pestanas.push({tab:t,filas:(await readTab(env,t)).length})}catch(e){out.pestanas.push({tab:t,error:String(e&&e.message||e)})}}
   return json(out)}
  return env.ASSETS.fetch(req)}

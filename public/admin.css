@@ -114,3 +114,17 @@ h3{font-size:19px;margin-bottom:4px}
 }
 
 .hide{display:none !important}
+
+/* ventanas emergentes y formularios de acción */
+.modal{position:fixed;inset:0;z-index:60;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal .box{width:100%;max-width:480px;max-height:92vh;overflow:auto}
+.fld{display:flex;flex-direction:column;gap:8px;color:var(--text-2);font-size:15px;margin-top:16px}
+.fh{color:var(--muted);font-size:14px;line-height:1.5;margin:8px 0 0}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.chk{display:flex;flex-direction:column;gap:10px;margin-top:18px;color:var(--text-2)}
+.chk label{display:flex;align-items:center;gap:10px;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--orange)}
+.btn.sm{min-height:40px;padding:0 18px;font-size:14px}
+.pill.sm{padding:2px 10px;font-size:12px;margin-left:6px}
+.lnk{color:#7fb6ff;border-bottom:1px dashed #2a77d6}
+@media (hover:hover){.lnk:hover{color:var(--orange);border-color:var(--orange)}}
